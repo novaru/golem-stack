@@ -1,0 +1,168 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-filemanager}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - golem-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app1:
+    build: ./file-manager-api
+    container_name: app1
+    environment:
+      APP_NAME: "File Manager 1"
+      INSTANCE_ID: "app1"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-filemanager}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      PORT: "3000"
+    ports:
+      - "3001:3000"
+    volumes:
+      - shared-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - golem-network
+
+  app2:
+    build: ./file-manager-api
+    container_name: app2
+    environment:
+      APP_NAME: "File Manager 2"
+      INSTANCE_ID: "app2"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-filemanager}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      PORT: "3000"
+    ports:
+      - "3002:3000"
+    volumes:
+      - shared-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - golem-network
+
+  app3:
+    build: ./file-manager-api
+    container_name: app3
+    environment:
+      APP_NAME: "File Manager 3"
+      INSTANCE_ID: "app3"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-filemanager}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      PORT: "3000"
+    ports:
+      - "3003:3000"
+    volumes:
+      - shared-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - golem-network
+
+  golem:
+    image: ghcr.io/novaru/golem:latest
+    container_name: golem
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config/config.json:/app/config.json:ro
+    depends_on:
+      - app1
+      - app2
+      - app3
+    networks:
+      - golem-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - cadvisor
+      - golem
+      - app1
+      - app2
+      - app3
+    networks:
+      - golem-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3031:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - golem-network
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - golem-network
+
+volumes:
+  pgdata:
+  prometheus-data:
+  grafana-data:
+  shared-uploads:
+
+networks:
+  golem-network:
+    driver: bridge

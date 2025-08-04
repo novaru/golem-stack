@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: 'cadvisor'
+    folder: 'cAdvisor'
+    type: file
+    options:
+      path: /etc/grafana/dashboards
+
