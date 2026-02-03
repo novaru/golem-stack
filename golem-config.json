@@ -1,0 +1,21 @@
+{
+  "port": 8000,
+  "backends": [
+    {
+      "name": "App 1",
+      "url": "http://app1:3000",
+      "weight": 1
+    },
+    {
+      "name": "App 2",
+      "url": "http://app2:3000",
+      "weight": 1
+    },
+    {
+      "name": "App 3",
+      "url": "http://app3:3000",
+      "weight": 1
+    }
+  ],
+  "method": "weighted"
+}
