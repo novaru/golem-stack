@@ -17,7 +17,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+    restart: unless-stopped
   app1:
     build: ./example-api
     container_name: app1
@@ -47,7 +47,13 @@ services:
         reservations:
           cpus: '1.5'
           memory: 1536M
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
   app2:
     build: ./example-api
     container_name: app2
@@ -77,7 +83,13 @@ services:
         reservations:
           cpus: '0.75'
           memory: 768M
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
   app3:
     build: ./example-api
     container_name: app3
@@ -107,23 +119,33 @@ services:
         reservations:
           cpus: '0.25'
           memory: 384M
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
   golem:
-    build:
-      context: ../golem
-      dockerfile: Dockerfile
+    image: ghcr.io/novaru/golem:latest
     container_name: golem
     ports:
       - "8000:8000"
     volumes:
-      - ./golem-config.json:/etc/golem/config.json:ro
+      - ./golem-config.json:/etc/golem/config.json:ro # Config mounted as volume
     depends_on:
       - app1
       - app2
       - app3
     networks:
       - golem-network
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/metrics"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -147,7 +169,12 @@ services:
       - app3
     networks:
       - golem-network
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -165,7 +192,12 @@ services:
       - prometheus
     networks:
       - golem-network
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: cadvisor
@@ -182,13 +214,12 @@ services:
       - /dev/kmsg:/dev/kmsg
     networks:
       - golem-network
-
+    restart: unless-stopped
 volumes:
   pgdata:
   prometheus-data:
   grafana-data:
   shared-uploads:
-
 networks:
   golem-network:
     driver: bridge
