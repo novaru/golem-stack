@@ -1,26 +1,22 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
-
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-
   # Golem Load Balancer
   - job_name: 'golem'
     static_configs:
       - targets: ['golem:8000']
     metrics_path: '/metrics'
     scrape_interval: 5s
-
   # File Manager API
   - job_name: 'filemanager-apps'
     static_configs:
-      - targets: ['localhost:5001', 'localhost:5002', 'localhost:5003']
+      - targets: ['app1:3000', 'app2:3000', 'app3:3000']
     metrics_path: '/metrics'
     scrape_interval: 10s
-
   # cAdvisor (Container metrics)
   - job_name: 'cadvisor'
     static_configs:
