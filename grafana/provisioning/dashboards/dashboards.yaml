@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: 'GOLEM Dashboards'
+    folder: 'GOLEM'
+    type: file
+    options:
+      path: /etc/grafana/dashboards/golem
+  - name: 'cAdvisor'
+    folder: 'Container Metrics'
+    type: file
+    options:
+      path: /etc/grafana/dashboards/cadvisor
