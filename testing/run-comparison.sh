@@ -224,15 +224,17 @@ UPLOADED_LOG = "/tmp/uploaded_files.log"
 
 -- Request counter (per thread)
 local request_counter = 0
+local thread_id = 0
 
--- Initialize
+-- Initialize thread ID
 function setup(thread)
-    thread:set("id", request_counter)
+    thread_id = math.random(1000, 9999)
+    thread:set("id", thread_id)
 end
 
 function init(args)
-    -- Seed random generator
-    math.randomseed(os.time() + wrk.thread.id * 10000)
+    -- Seed random generator with process ID and time
+    math.randomseed(os.time() * math.random(1000))
 end
 
 -- Generate unique file content
@@ -242,7 +244,7 @@ function request()
     -- Create unique prefix using timestamp, thread ID, and counter
     local unique_id = string.format("%d-%d-%d-", 
         os.time() * 1000 + math.random(1000),
-        wrk.thread.id,
+        thread_id,
         request_counter
     )
     
