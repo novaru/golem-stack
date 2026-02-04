@@ -1,0 +1,10 @@
+# Ignore test results (large files, local only)
+results/
+
+# Ignore temporary files
+*.log
+*.tmp
+*.lua
+
+# Keep the directory structure
+!.gitkeep
