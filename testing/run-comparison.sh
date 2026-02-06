@@ -320,6 +320,7 @@ run_algorithm_test() {
     # Run wrk test
     log_info "Running wrk test (duration: $TEST_DURATION, connections: $CONNECTIONS)..."
     wrk -t"$THREADS" -c"$CONNECTIONS" -d"$TEST_DURATION" \
+        --latency \
         -s "$lua_script" \
         "$GOLEM_URL/api/files" \
         > "$output_file" 2>&1
@@ -353,8 +354,22 @@ def parse_wrk(filepath):
         metrics['throughput'] = float(m.group(1))
     if m := re.search(r'Latency.*?(\d+\.\d+)ms', text):
         metrics['avg_latency'] = float(m.group(1))
-    if m := re.search(r'99%\s+([\d.]+)ms', text):
-        metrics['p99_latency'] = float(m.group(1))
+    
+    # Try to parse P99 from latency distribution (with --latency flag)
+    # Format: "    99%    123.45ms"
+    if m := re.search(r'99%\s+([\d.]+)(ms|s)', text):
+        value = float(m.group(1))
+        unit = m.group(2)
+        # Convert to ms if in seconds
+        metrics['p99_latency'] = value * 1000 if unit == 's' else value
+    else:
+        # Fallback: use max latency if P99 not available
+        if m := re.search(r'Latency\s+[\d.]+\w+\s+[\d.]+\w+\s+([\d.]+)(ms|s)', text):
+            value = float(m.group(1))
+            unit = m.group(2)
+            metrics['p99_latency'] = value * 1000 if unit == 's' else value
+        else:
+            metrics['p99_latency'] = 0.0
     
     return metrics
 
@@ -396,8 +411,22 @@ def parse_wrk(filepath):
         metrics['throughput'] = float(m.group(1))
     if m := re.search(r'Latency.*?(\d+\.\d+)ms', text):
         metrics['avg_latency'] = float(m.group(1))
-    if m := re.search(r'99%\s+([\d.]+)ms', text):
-        metrics['p99_latency'] = float(m.group(1))
+    
+    # Try to parse P99 from latency distribution (with --latency flag)
+    # Format: "    99%    123.45ms"
+    if m := re.search(r'99%\s+([\d.]+)(ms|s)', text):
+        value = float(m.group(1))
+        unit = m.group(2)
+        # Convert to ms if in seconds
+        metrics['p99_latency'] = value * 1000 if unit == 's' else value
+    else:
+        # Fallback: use max latency if P99 not available
+        if m := re.search(r'Latency\s+[\d.]+\w+\s+[\d.]+\w+\s+([\d.]+)(ms|s)', text):
+            value = float(m.group(1))
+            unit = m.group(2)
+            metrics['p99_latency'] = value * 1000 if unit == 's' else value
+        else:
+            metrics['p99_latency'] = 0.0
     
     return metrics
 

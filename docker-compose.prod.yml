@@ -18,8 +18,119 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+  # --- OLD BUN API ---
+  # app1:
+  #   build: ./example-api
+  #   container_name: app1
+  #   environment:
+  #     APP_NAME: "File Manager 1"
+  #     INSTANCE_ID: "app1"
+  #     DB_HOST: "postgres"
+  #     DB_PORT: "5432"
+  #     DB_NAME: ${DB_NAME:-filemanager}
+  #     DB_USER: ${DB_USER:-postgres}
+  #     DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  #     PORT: "3000"
+  #   ports:
+  #     - "3001:3000"
+  #   volumes:
+  #     - shared-uploads:/app/uploads
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - golem-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2.0'
+  #         memory: 2048M
+  #       reservations:
+  #         cpus: '1.5'
+  #         memory: 1536M
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
+  # app2:
+  #   build: ./example-api
+  #   container_name: app2
+  #   environment:
+  #     APP_NAME: "File Manager 2"
+  #     INSTANCE_ID: "app2"
+  #     DB_HOST: "postgres"
+  #     DB_PORT: "5432"
+  #     DB_NAME: ${DB_NAME:-filemanager}
+  #     DB_USER: ${DB_USER:-postgres}
+  #     DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  #     PORT: "3000"
+  #   ports:
+  #     - "3002:3000"
+  #   volumes:
+  #     - shared-uploads:/app/uploads
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - golem-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 1024M
+  #       reservations:
+  #         cpus: '0.75'
+  #         memory: 768M
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
+  # app3:
+  #   build: ./example-api
+  #   container_name: app3
+  #   environment:
+  #     APP_NAME: "File Manager 3"
+  #     INSTANCE_ID: "app3"
+  #     DB_HOST: "postgres"
+  #     DB_PORT: "5432"
+  #     DB_NAME: ${DB_NAME:-filemanager}
+  #     DB_USER: ${DB_USER:-postgres}
+  #     DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  #     PORT: "3000"
+  #   ports:
+  #     - "3003:3000"
+  #   volumes:
+  #     - shared-uploads:/app/uploads
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - golem-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.25'
+  #         memory: 384M
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
+
+  # --- NEW CI4 API ---
   app1:
-    build: ./example-api
+    build: ./ci4-file-api
     container_name: app1
     environment:
       APP_NAME: "File Manager 1"
@@ -29,11 +140,11 @@ services:
       DB_NAME: ${DB_NAME:-filemanager}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      PORT: "3000"
+      CI_ENVIRONMENT: production
     ports:
       - "3001:3000"
     volumes:
-      - shared-uploads:/app/uploads
+      - shared-uploads:/var/www/html/writable/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,13 +160,13 @@ services:
           memory: 1536M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/3000' || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 10s
   app2:
-    build: ./example-api
+    build: ./ci4-file-api
     container_name: app2
     environment:
       APP_NAME: "File Manager 2"
@@ -65,11 +176,11 @@ services:
       DB_NAME: ${DB_NAME:-filemanager}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      PORT: "3000"
+      CI_ENVIRONMENT: production
     ports:
       - "3002:3000"
     volumes:
-      - shared-uploads:/app/uploads
+      - shared-uploads:/var/www/html/writable/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,13 +196,13 @@ services:
           memory: 768M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/3000' || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 10s
   app3:
-    build: ./example-api
+    build: ./ci4-file-api
     container_name: app3
     environment:
       APP_NAME: "File Manager 3"
@@ -101,11 +212,11 @@ services:
       DB_NAME: ${DB_NAME:-filemanager}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      PORT: "3000"
+      CI_ENVIRONMENT: production
     ports:
       - "3003:3000"
     volumes:
-      - shared-uploads:/app/uploads
+      - shared-uploads:/var/www/html/writable/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,7 +232,7 @@ services:
           memory: 384M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/3000' || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
