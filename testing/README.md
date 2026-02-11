@@ -521,6 +521,281 @@ done
 
 ---
 
+## 🪟 PowerShell API Cheatsheet
+
+Quick reference for interacting with GOLEM File Service API using PowerShell (Windows).
+
+### Prerequisites
+```powershell
+# Set base URL
+$GolemUrl = "http://localhost:8000"
+# OR for remote VPS
+$GolemUrl = "http://cf9deb75-ebc2-48aa-af29-966c7ad302d4.svc.dalang.io:8000"
+```
+
+### 1. Health Check
+```powershell
+# Check if GOLEM is running
+Invoke-RestMethod -Uri "$GolemUrl/health" -Method Get
+
+# Expected output:
+# status  : ok
+# message : Service is healthy
+```
+
+### 2. Upload File
+```powershell
+# Create a test file
+$testFile = "test.txt"
+"Hello GOLEM!" | Out-File -FilePath $testFile -Encoding utf8
+
+# Upload file (multipart/form-data)
+$form = @{
+    file = Get-Item -Path $testFile
+}
+$response = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Post -Form $form
+
+# Response
+$response
+# message  : File uploaded successfully
+# filename : test.txt
+# size     : 14
+# checksum : abc123...
+
+# Upload large file with progress
+$largeFile = "bigfile.zip"
+$response = Invoke-WebRequest -Uri "$GolemUrl/api/files" -Method Post -InFile $largeFile -ContentType "multipart/form-data" | ConvertFrom-Json
+```
+
+### 3. List All Files
+```powershell
+# Get all uploaded files
+$files = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Get
+
+# View files
+$files | Format-Table
+
+# Count files
+$files.Count
+
+# Filter by name pattern
+$files | Where-Object { $_.filename -like "*.txt" }
+```
+
+### 4. Get File Metadata
+```powershell
+# Get specific file info
+$filename = "test.txt"
+$fileInfo = Invoke-RestMethod -Uri "$GolemUrl/api/files/$filename" -Method Get -Headers @{Accept="application/json"}
+
+# View metadata
+$fileInfo
+# filename     : test.txt
+# size         : 14
+# checksum     : abc123...
+# uploaded_at  : 2026-02-09T10:30:00Z
+# content_type : text/plain
+```
+
+### 5. Download File
+```powershell
+# Download file to current directory
+$filename = "test.txt"
+Invoke-WebRequest -Uri "$GolemUrl/api/files/$filename" -OutFile $filename
+
+# Download with custom name
+Invoke-WebRequest -Uri "$GolemUrl/api/files/$filename" -OutFile "downloaded_$filename"
+
+# Download to specific directory
+$downloadPath = "C:\Downloads\$filename"
+Invoke-WebRequest -Uri "$GolemUrl/api/files/$filename" -OutFile $downloadPath
+
+# Verify downloaded file
+Get-FileHash -Path $filename -Algorithm SHA256
+```
+
+### 6. Delete File
+```powershell
+# Delete specific file
+$filename = "test.txt"
+$response = Invoke-RestMethod -Uri "$GolemUrl/api/files/$filename" -Method Delete
+
+# Response
+$response
+# message : File deleted successfully
+
+# Delete multiple files
+$filesToDelete = @("file1.txt", "file2.txt", "file3.txt")
+foreach ($file in $filesToDelete) {
+    try {
+        Invoke-RestMethod -Uri "$GolemUrl/api/files/$file" -Method Delete
+        Write-Host "Deleted: $file" -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to delete: $file" -ForegroundColor Red
+    }
+}
+
+# Delete all files (be careful!)
+$files = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Get
+foreach ($file in $files) {
+    Invoke-RestMethod -Uri "$GolemUrl/api/files/$($file.filename)" -Method Delete
+}
+Write-Host "Deleted $($files.Count) files" -ForegroundColor Yellow
+```
+
+### 7. Get Prometheus Metrics
+```powershell
+# Fetch metrics
+$metrics = Invoke-RestMethod -Uri "$GolemUrl/metrics" -Method Get
+
+# View raw metrics
+$metrics
+
+# Parse specific metrics (example: total requests)
+$metrics | Select-String -Pattern "golem_requests_total"
+
+# Save metrics to file
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$metrics | Out-File -FilePath "metrics_$timestamp.txt"
+```
+
+### 8. Bulk Upload Test
+```powershell
+# Upload multiple files
+$files = Get-ChildItem -Path ".\testdata\*.txt"
+
+foreach ($file in $files) {
+    $form = @{ file = $file }
+    try {
+        $response = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Post -Form $form
+        Write-Host "Uploaded: $($file.Name) - Size: $($response.size) bytes" -ForegroundColor Green
+    } catch {
+        Write-Host "Failed: $($file.Name) - $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+```
+
+### 9. Performance Testing (Simple)
+```powershell
+# Measure upload performance
+$testFile = "test.txt"
+"Test content" | Out-File -FilePath $testFile
+
+$iterations = 10
+$durations = @()
+
+for ($i = 1; $i -le $iterations; $i++) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    
+    $form = @{ file = Get-Item -Path $testFile }
+    $response = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Post -Form $form
+    
+    $sw.Stop()
+    $durations += $sw.ElapsedMilliseconds
+    
+    Write-Host "Request $i : $($sw.ElapsedMilliseconds) ms" -ForegroundColor Cyan
+    
+    # Cleanup
+    Invoke-RestMethod -Uri "$GolemUrl/api/files/$($response.filename)" -Method Delete
+}
+
+# Calculate statistics
+$avgLatency = ($durations | Measure-Object -Average).Average
+$minLatency = ($durations | Measure-Object -Minimum).Minimum
+$maxLatency = ($durations | Measure-Object -Maximum).Maximum
+
+Write-Host "`nPerformance Summary:" -ForegroundColor Yellow
+Write-Host "Average Latency: $([math]::Round($avgLatency, 2)) ms"
+Write-Host "Min Latency:     $minLatency ms"
+Write-Host "Max Latency:     $maxLatency ms"
+```
+
+### 10. Error Handling
+```powershell
+# Proper error handling
+try {
+    $response = Invoke-RestMethod -Uri "$GolemUrl/api/files/nonexistent.txt" -Method Get -ErrorAction Stop
+} catch {
+    $statusCode = $_.Exception.Response.StatusCode.value__
+    $errorMessage = $_.ErrorDetails.Message | ConvertFrom-Json
+    
+    Write-Host "Error $statusCode : $($errorMessage.error)" -ForegroundColor Red
+}
+
+# Check if file exists before download
+function Test-FileExists {
+    param($Filename)
+    
+    try {
+        $files = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Get
+        return $files.filename -contains $Filename
+    } catch {
+        return $false
+    }
+}
+
+if (Test-FileExists -Filename "test.txt") {
+    Invoke-WebRequest -Uri "$GolemUrl/api/files/test.txt" -OutFile "test.txt"
+    Write-Host "File downloaded successfully" -ForegroundColor Green
+} else {
+    Write-Host "File not found" -ForegroundColor Red
+}
+```
+
+### 11. JSON Formatted Output
+```powershell
+# Pretty print JSON responses
+$files = Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Get
+$files | ConvertTo-Json -Depth 5
+
+# Export to JSON file
+$files | ConvertTo-Json -Depth 5 | Out-File -FilePath "files_list.json"
+
+# Import and work with saved JSON
+$savedFiles = Get-Content "files_list.json" | ConvertFrom-Json
+$savedFiles | Where-Object { $_.size -gt 1000000 } | Format-Table
+```
+
+### Tips for Windows Users
+
+**Using Variables:**
+```powershell
+# Set common variables at start of session
+$GolemUrl = "http://localhost:8000"
+$OutputDir = "C:\GOLEM\downloads"
+$TestDataDir = "C:\GOLEM\testdata"
+```
+
+**Creating Aliases:**
+```powershell
+# Add to your PowerShell profile
+function Get-GolemFiles { Invoke-RestMethod -Uri "$GolemUrl/api/files" -Method Get }
+function Get-GolemHealth { Invoke-RestMethod -Uri "$GolemUrl/health" -Method Get }
+
+# Usage
+Get-GolemFiles
+Get-GolemHealth
+```
+
+**Profile Location:**
+```powershell
+# Edit profile
+notepad $PROFILE
+
+# Or create if doesn't exist
+New-Item -Path $PROFILE -Type File -Force
+```
+
+**Suppress Progress for Faster Execution:**
+```powershell
+# Disable progress bar for faster downloads
+$ProgressPreference = 'SilentlyContinue'
+Invoke-WebRequest -Uri "$GolemUrl/api/files/bigfile.zip" -OutFile "bigfile.zip"
+$ProgressPreference = 'Continue'
+```
+
+---
+
 **Created for**: Febriyan Andriansyah Novaru (@novaru)  
 **Thesis**: Load Balancer Architecture for File Service Using Go with Prometheus Monitoring  
-**Last Updated**: 2026-02-04
+**Last Updated**: 2026-02-09

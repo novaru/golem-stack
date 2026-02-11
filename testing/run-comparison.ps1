@@ -25,7 +25,7 @@
 #>
 
 param(
-    [int]$FileSize = 5242880,          # 5MB default
+    [int]$FileSize = 5242880,          # 5MB default (same as bash version)
     [string]$TestDuration = "90s",     # 90 seconds default
     [int]$Connections = 20,            # 20 concurrent connections
     [string]$GolemUrl = "http://localhost:8000"
@@ -319,16 +319,18 @@ function Invoke-AlgorithmTest {
     Write-Info "Testing algorithm: $Algorithm"
     
     # Switch algorithm
-    $switchScript = Join-Path $StackDir "switch-algorithm.sh"
+    $switchScript = Join-Path $StackDir "switch-algorithm.ps1"
     if (Test-Path $switchScript) {
-        if (Test-CommandExists "bash") {
-            bash $switchScript $Algorithm
-            Start-Sleep -Seconds 5
-        } else {
-            Write-Warn "bash not found, cannot switch algorithm. Using current algorithm"
+        Write-Info "Switching to $Algorithm algorithm..."
+        try {
+            & $switchScript -Algorithm $Algorithm
+            Start-Sleep -Seconds 3
+        } catch {
+            Write-Warn "Failed to switch algorithm: $_"
+            Write-Warn "Using current algorithm"
         }
     } else {
-        Write-Warn "switch-algorithm.sh not found, using current algorithm"
+        Write-Warn "switch-algorithm.ps1 not found, using current algorithm"
     }
     
     # Prepare test file directory
